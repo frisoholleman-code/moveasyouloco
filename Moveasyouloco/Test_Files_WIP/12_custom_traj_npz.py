@@ -14,7 +14,7 @@ from loco_mujoco.trajectory import Trajectory, TrajectoryInfo, TrajectoryModel, 
 # Set to True to only show the initial state indefinitely, False to play the trajectory
 SHOW_INITIAL_STATE_ONLY = True
 
-NPZ_PATH = "/home/frisokroes/loco-mujoco-linux/loco-mujoco/Moveasyouloco/Data_Conversion/Input_Files/kroes_squat.npz"
+NPZ_PATH = "Moveasyouloco/Data_Conversion/Output_Files/squat5_converted.npz"
 custom_data = np.load(NPZ_PATH)
 
 if 'qpos' not in custom_data:
