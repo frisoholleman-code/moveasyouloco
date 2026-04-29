@@ -9,7 +9,7 @@ from loco_mujoco.trajectory import Trajectory, TrajectoryInfo, TrajectoryModel, 
 # ==========================================
 # 1. Setup & Load Data
 # ==========================================
-NPZ_PATH = "/home/frisokroes/loco-mujoco-linux/BEP_locomujoco/data_preparation/output_files/arm_rechts.npz"
+NPZ_PATH = "/home/frisokroes/loco-mujoco-linux/Coke/data_preparation/output_files/arm_rechts.npz"
 custom_data = np.load(NPZ_PATH)
 
 if 'qpos' not in custom_data:
