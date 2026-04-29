@@ -397,13 +397,13 @@ class MujocoViewer:
                         'Ran out of geoms. maxgeom: %d' %
                         self._scene.ngeom.maxgeom)
                 mujoco.mjv_initGeom(self._scene.geoms[carry_visual_start_idx + j],
-                                    carry.user_scene.geoms.type[j],
+                                    int(carry.user_scene.geoms.type[j].item()),  # <--- Added .item() here
                                     carry.user_scene.geoms.size[j],
                                     carry.user_scene.geoms.pos[j],
                                     carry.user_scene.geoms.mat[j],
                                     carry.user_scene.geoms.rgba[j])
                 # set dataid to be able to identify the geom in the user scene
-                self._scene.geoms[carry_visual_start_idx + j].dataid = int(carry.user_scene.geoms.dataid[j]*2)
+                self._scene.geoms[carry_visual_start_idx + j].dataid = int(carry.user_scene.geoms.dataid[j].item() * 2)
                 self._scene.geoms[carry_visual_start_idx + j].category =  mujoco.mjtCatBit.mjCAT_DECOR
 
                 self._scene.ngeom += 1

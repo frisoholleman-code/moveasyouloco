@@ -7,7 +7,7 @@ import gymnasium as gym
 env = gym.make("LocoMujoco", env_name="SkeletonTorque", render_mode="human",
                default_dataset_conf=DefaultDatasetConf("walk"),
                lafan1_dataset_conf=LAFAN1DatasetConf("walk1_subject1"),
-               goal_type="GoalTrajMimicv2", goal_params=dict(visualize_goal=True))
+               goal_type="GoalTrajMimicv2", goal_params=dict(visualize_goal=False))
 
 action_dim = env.action_space.shape[0]
 

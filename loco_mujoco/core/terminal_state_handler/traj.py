@@ -217,8 +217,20 @@ class RootPoseTrajTerminalStateHandler(TerminalStateHandler):
         # normalize them
         norm_root_quats = root_quats / np.linalg.norm(root_quats, axis=1, keepdims=True)
 
+        norm_root_quats_np = np.array(norm_root_quats)
+
+        # 2. Check for NaNs (caused by 0/0 division) OR tiny norms
+        nan_mask = np.isnan(norm_root_quats_np).any(axis=-1)
+        zero_mask = np.linalg.norm(norm_root_quats_np, axis=-1) < 1e-6
+        bad_mask = nan_mask | zero_mask  # Combine both checks!
+
+        # 3. Safely overwrite the corrupted rows with a valid quaternion
+        norm_root_quats_np[bad_mask] = np.array([0.0, 0.0, 0.0, 1.0])
+
+        # 4. Hand the fixed, mathematically perfect array to Scipy
+        r = np_R.from_quat(norm_root_quats_np)
+
         # compute centroid of the quaternions
-        r = np_R.from_quat(norm_root_quats)
         centroid_quat = r.mean().as_quat()
 
         # Compute maximum deviation in angular distance

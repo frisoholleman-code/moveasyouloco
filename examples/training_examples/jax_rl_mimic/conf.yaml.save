@@ -23,17 +23,19 @@ experiment:
   task_factory:
     name: ImitationFactory
     params:
-      custom_dataset_conf:
-        traj: "/home/frisokroes/loco-mujoco-linux/custom_data_prep/output_data/kroes_squat.npz"
+      default_dataset_conf:
+        task:
+          - run
+        dataset_type: pretrained
   env_params:
-    env_name: MjxSkeletonTorque
+    env_name: HumanoidTorque
     use_mjwarp: True
-    nconmax: 7000
+    nconmax: 1000
     headless: True
     horizon: 1000
     goal_type: GoalTrajMimic
     goal_params:
-      visualize_goal: true
+      visualize_goal: false
     control_type: ${control_config.torque_control.control_type}
     control_params: ${control_config.torque_control.control_params}
     reward_type: MimicReward
@@ -52,8 +54,8 @@ experiment:
   hidden_layers: [512, 256]
   lr: 1e-4
   num_envs: 64
-  num_steps: 20
-  total_timesteps: 300e3
+  num_steps: 100
+  total_timesteps: 100000
   update_epochs: 4
   proportion_env_reward: 0.0
   num_minibatches: 32
@@ -74,9 +76,9 @@ experiment:
   vmap_across_seeds: true
   validation:
     active: true
-    num_steps: 100
-    num_envs: 100
-    num: 10 # set to 0 to disable validation
+    num_steps: 50
+    num_envs: 10
+    num: 2 # set to 0 to disable validation
     # if none of the following is set, only the mean reward and episode length is logged
     quantities: # quantities to be used for the distance measures below
       - JointPosition
@@ -150,4 +152,5 @@ control_config:
 
   torque_control:
     control_type: DefaultControl
-    control_params:
+    control_params: {}
+x
