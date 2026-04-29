@@ -2,6 +2,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import mujoco
+import mujoco.viewer
+import time
 
 from loco_mujoco.environments import SkeletonTorque  # Or SkeletonTorque!
 from loco_mujoco.trajectory import Trajectory, TrajectoryInfo, TrajectoryModel, TrajectoryData
@@ -9,7 +11,10 @@ from loco_mujoco.trajectory import Trajectory, TrajectoryInfo, TrajectoryModel, 
 # ========================================== 
 # 1. Setup & Load Data
 # ==========================================
-NPZ_PATH = "/home/fholleman/Documents/Codefiles/BEP/loco-mujoco/examples/kroes_squat.npz"
+# Set to True to only show the initial state indefinitely, False to play the trajectory
+SHOW_INITIAL_STATE_ONLY = True
+
+NPZ_PATH = "/home/frisokroes/loco-mujoco-linux/loco-mujoco/Moveasyouloco/Data_Conversion/Input_Files/kroes_squat.npz"
 custom_data = np.load(NPZ_PATH)
 
 if 'qpos' not in custom_data:
@@ -105,5 +110,23 @@ traj = Trajectory(traj_info, traj_data)
 print("\n▶️ Replaying Trajectory...")
 env.load_trajectory(traj)
 
-# Call play_trajectory (added render=True so the window actually pops up!)
-env.play_trajectory(n_steps_per_episode=N_steps, render=True)
+if SHOW_INITIAL_STATE_ONLY:
+    print("🔒 Showing initial state indefinitely (SHOW_INITIAL_STATE_ONLY=True)")
+
+    # Set qpos and qvel to the initial frame from the trajectory
+    env.data.qpos[:] = qpos_traj[0]
+    env.data.qvel[:] = qvel_traj[0]
+
+    # Update forward kinematics to apply the positions
+    mujoco.mj_forward(model, env.data)
+
+    # Launch the MuJoCo passive viewer
+    with mujoco.viewer.launch_passive(model, env.data) as viewer:
+        # viewer.is_running() keeps the loop alive until you close the window
+        while viewer.is_running():
+            viewer.sync()       # Synchronizes the viewer with the data state
+            time.sleep(0.05)    # Pauses briefly so your CPU and the GUI event loop can breathe
+
+else:
+    # Call play_trajectory
+    env.play_trajectory(n_steps_per_episode=N_steps, render=True)
