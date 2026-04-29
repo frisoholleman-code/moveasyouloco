@@ -49,6 +49,7 @@ experiment:
   lr: 1e-4
   num_envs: 2048
   num_steps: 50
+  record_n_steps: 300
   total_timesteps: 10e7
   update_epochs: 4
   num_minibatches: 32
