@@ -24,9 +24,10 @@ experiment:
     name: ImitationFactory
     params:
       custom_dataset_conf:
-        traj: "/home/fholleman/Documents/Codefiles/BEP/loco-mujoco/examples/kroes_squat.npz"
+        traj: "Moveasyouloco/Data_Conversion/Output_Files/squat5_converted.npz"
   env_params:
     env_name: MjxSkeletonTorque
+    #init_state_type: TrajInitialStateHandler
     use_mjwarp: True
     nconmax: 7000
     njmax: 95
@@ -55,21 +56,21 @@ experiment:
   num_envs: 1024
   num_steps: 500
   record_n_steps: 300
-  total_timesteps: 110
+  total_timesteps: 150e6
   update_epochs: 12
   proportion_env_reward: 0.2
   num_minibatches: 32
   gamma: 0.99
   gae_lambda: 0.95
-  clip_eps: 0.1
-  init_std: 0.5
+  clip_eps: 0.2
+  init_std: 0.7
   learnable_std: True
-  ent_coef: 0.03
+  ent_coef: 0.06
   vf_coef: 0.5
   max_grad_norm: 2.0
   activation: tanh
   anneal_lr: false
-  weight_decay: 1e-5
+  weight_decay: 1e-6
   normalize_env: true
   debug: false
   n_seeds: 1  # will automatically take seeds from 1 to n_seeds
@@ -123,12 +124,12 @@ control_config:
         - 200  # hip_adduction_r_actuator -> hip_roll
         - 200  # hip_rotation_r_actuator -> hip_yaw
         - 300  # knee_angle_r_actuator -> knee
-        - 40   # ankle_angle_r_actuator -> ankle
+        - 150   # ankle_angle_r_actuator -> ankle #original 40
         - 200  # hip_flexion_l_actuator -> hip_pitch
         - 200  # hip_adduction_l_actuator -> hip_roll
         - 200  # hip_rotation_l_actuator -> hip_yaw
         - 300  # knee_angle_l_actuator -> knee
-        - 40   # ankle_angle_l_actuator -> ankle
+        - 150   # ankle_angle_l_actuator -> ankle #original 40
       d_gain:
         - 6  # back_bkz_actuator -> torso
         - 2  # l_arm_shy_actuator -> shoulder
@@ -143,12 +144,12 @@ control_config:
         - 5  # hip_adduction_r_actuator -> hip_roll
         - 5  # hip_rotation_r_actuator -> hip_yaw
         - 6  # knee_angle_r_actuator -> knee
-        - 2  # ankle_angle_r_actuator -> ankle
+        - 5  # ankle_angle_r_actuator -> ankle #original 2
         - 5  # hip_flexion_l_actuator -> hip_pitch
         - 5  # hip_adduction_l_actuator -> hip_roll
         - 5  # hip_rotation_l_actuator -> hip_yaw
         - 6  # knee_angle_l_actuator -> knee
-        - 2  # ankle_angle_l_actuator -> ankle
+        - 5  # ankle_angle_l_actuator -> ankle #original 2
 
   torque_control:
     control_type: DefaultControl

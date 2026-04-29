@@ -15,10 +15,15 @@ import random
 # 0. CONFIGURATION
 # ==========================================
 # Update these paths to point to your files.
-MOT_FILE_PATH = Path("/home/frisokroes/loco-mujoco-linux/Coke/data_preparation/input_files/kroes_lopen/wandeling4.mot")
-XML_MODEL_PATH = Path("/home/frisokroes/.virtualenvs/loco-mujoco-linux/lib/python3.12/site-packages/loco_mujoco_models/skeleton/skeleton_torque.xml")
-GOLDEN_NPZ_PATH = Path("/home/frisokroes/loco-mujoco-linux/custom_data_prep/output_data/lopen.npz")
-OUTPUT_NPZ_PATH = Path("/home/frisokroes/loco-mujoco-linux/Coke/data_preparation/output_files/kroes_wandeling4.npz")
+BASE_DIR = Path(__file__).resolve().parent
+INPUT_DIR = BASE_DIR / "Input_Files"
+OUTPUT_DIR = BASE_DIR / "Output_Files"
+MODEL_DIR = BASE_DIR.parent / "Models" / "skeleton"
+
+MOT_FILE_PATH = INPUT_DIR / "squat5.mot"  # Input path, take from Input_Files.
+XML_MODEL_PATH = MODEL_DIR / "skeleton_torque.xml"  # Path to xml model in Models/skeleton.
+GOLDEN_NPZ_PATH = BASE_DIR/"Control_Data" / "walk1_subject5.npz"  # Control data walk1subject5
+OUTPUT_NPZ_PATH = OUTPUT_DIR / f"{MOT_FILE_PATH.stem}_converted.npz"  # Output path for the converted .npz file in Output_Files
 
 # Set to True to print a visual mapping comparison for 5 random joints
 ENABLE_VERIFICATION = True
