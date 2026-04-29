@@ -103,7 +103,9 @@ def experiment(config: DictConfig):
         print(f"Time taken to log metrics: {time.time() - t_start}s")
 
         # run the environment with the trained agent to record video
-        PPOJax.play_policy(env, agent_conf, agent_state, deterministic=True, n_steps=200, n_envs=20, record=True,
+        record_n_steps = config.experiment.record_n_steps if "record_n_steps" in config.experiment else 300
+        PPOJax.play_policy(env, agent_conf, agent_state, deterministic=True,
+                           n_steps=record_n_steps, n_envs=20, record=True,
                            train_state_seed=0)
         video_file = env.video_file_path
         run.log({"Agent Video": wandb.Video(video_file)})
