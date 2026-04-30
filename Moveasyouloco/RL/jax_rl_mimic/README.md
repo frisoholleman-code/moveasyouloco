@@ -50,5 +50,23 @@ If you'd like to evaluate the agent using MuJoCo (instead of Mjx), run:
 python eval.py --path path/to/agent_file --use_mujoco
 ```
 
+#### Joint Torque Analysis
+
+To evaluate and analyze the joint torques produced by the trained agent, run:
+
+```bash
+python eval_torques.py --path path/to/agent_file --n_steps 1000 --save_torques
+```
+
+This will:
+- Run the agent for the specified number of steps using MuJoCo
+- Collect joint torque data from all actuators
+- Display detailed statistics (mean, max, RMS) for each joint
+- Optionally save the torque data to a `.npz` file for further analysis
+
+Parameters:
+- `--path`: Path to the trained agent file (required)
+- `--n_steps`: Number of evaluation steps (default: 1000)
+- `--save_torques`: Save torque data to file (optional)
+
 > ⚠️ **Note:** Evaluating with MuJoCo may not yield results as robust as with Mjx due to simulator differences. For reliable policy transfer between the two, consider applying domain randomization techniques.
-nks to the dataset, or more details about the environment or architecture!
