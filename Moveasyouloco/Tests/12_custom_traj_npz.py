@@ -5,17 +5,24 @@ import mujoco
 import mujoco.viewer
 import time
 
-from loco_mujoco.environments import SkeletonTorque  # Or SkeletonTorque!
+from loco_mujoco.environments import SkeletonMuscle
 from loco_mujoco.trajectory import Trajectory, TrajectoryInfo, TrajectoryModel, TrajectoryData
-
+from pathlib import Path
 # ========================================== 
 # 1. Setup & Load Data
 # ==========================================
 # Set to True to only show the initial state indefinitely, False to play the trajectory
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+print(BASE_DIR)
 SHOW_INITIAL_STATE_ONLY = False
 
-NPZ_PATH = "/home/frisokroes/loco-mujoco-linux/loco-mujoco/Moveasyouloco/Data_Conversion/Output_Files/kroes_squat.npz"
+
+NPZ_PATH = BASE_DIR / "Data_Conversion" / "Output_Files" / "squat5_converted_skeletal_muscle.npz"
 custom_data = np.load(NPZ_PATH)
+
+
+
 
 if 'qpos' not in custom_data:
     raise ValueError("❌ 'qpos' key not found in dataset!")
@@ -37,7 +44,7 @@ dt = 1.0 / freq
 # 2. Initialize Environment
 # ==========================================
 # Note: You can swap UnitreeH1 out for SkeletonTorque here
-env = SkeletonTorque(init_state_type="DefaultInitialStateHandler")
+env = SkeletonMuscle(init_state_type="DefaultInitialStateHandler")
 
 key = jax.random.PRNGKey(0)
 env.reset(key)
