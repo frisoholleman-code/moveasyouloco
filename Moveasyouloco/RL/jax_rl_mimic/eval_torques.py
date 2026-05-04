@@ -33,13 +33,13 @@ def main():
     # ==========================================
     # --- PREPARE CUSTOM DATA & KINEMATICS ---
     # ==========================================
-    factory_params = OmegaConf.to_container(config.experiment.task_factory.params, resolve=True)
+    factory_parameters = OmegaConf.to_container(config.experiment.task_factory.params, resolve=True)
 
-    if "custom_dataset_conf" in factory_params:
-        conf_dict = factory_params["custom_dataset_conf"]
+    if "custom_dataset_conf" in factory_parameters:
+        conf_dict = factory_parameters["custom_dataset_conf"]
         if "traj" in conf_dict and isinstance(conf_dict["traj"], str):
             npz_path = conf_dict["traj"]
-            print(f"\n🔧\ Intercepted string path in YAML: {npz_path}")
+            print(f"\n Intercepted string path in YAML: {npz_path}")
 
             # Load Trajectory
             traj = Trajectory.load(npz_path)
@@ -91,7 +91,7 @@ def main():
             )
             print("COMPLETE: Full Physics profile baked into Trajectory for JAX reward calculation")
 
-            factory_params["custom_dataset_conf"] = CustomDatasetConf(traj)
+            factory_parameters["custom_dataset_conf"] = CustomDatasetConf(traj)
             print(f"COMPLETE: Custom dataset ready! Dataset length: {n_frames} frames\n")
 
     # ==========================================
@@ -101,7 +101,7 @@ def main():
     config.experiment.env_params["headless"] = False
     config.experiment.env_params["goal_type"] = "GoalTrajMimic"
 
-    env = factory.make(**config.experiment.env_params, **factory_params)
+    env = factory.make(**config.experiment.env_params, **factory_parameters)
 
     # Handle standard vs gym environment data access
     mj_data = getattr(env, "data", None)
@@ -189,12 +189,47 @@ def main():
     print(f"  Overall RMS : {np.sqrt(np.mean(all_torques ** 2)):.2f} Nm")
 
     if args.save_torques:
-        output_file = f"{os.path.splitext(args.path)[0]}_torques.npz"
-        np.savez(output_file,
+        base_path = os.path.splitext(args.path)[0]
+
+        # 1. Save standard .npz file
+        npz_file = f"{base_path}_torques.npz"
+        np.savez(npz_file,
                  torque_history=torque_history[:step_count],
                  actuator_names=actuator_names,
                  time_steps=np.arange(step_count))
-        print(f"\n Saved torque data to: {output_file}")
+
+        # 2. Save OpenSim .mot file
+        mot_file = f"{base_path}_torques.mot"
+
+
+        dt = getattr(env, "dt", None)
+        if dt is None and hasattr(env, "unwrapped"):
+            dt = getattr(env.unwrapped, "dt", None)
+
+        if dt is None:
+            dt = 0.01666666  # Final safe fallback for MJX environments
+
+        time_array = np.arange(step_count) * dt
+
+        with open(mot_file, 'w') as f:
+            # Write OpenSim .mot header
+            f.write(f"Torques_from_{os.path.basename(base_path)}\n")
+            f.write("version=1\n")
+            f.write(f"nRows={step_count}\n")
+            f.write(f"nColumns={n_actuators + 1}\n")  # +1 for the time column
+            f.write("inDegrees=yes\n")
+            f.write("endheader\n")
+
+            # Write column headers (time + actuator names)
+            header_row = ["time"] + actuator_names
+            f.write("\t".join(header_row) + "\n")
+
+            # Write row data
+            for i in range(step_count):
+                row_data = [f"{time_array[i]:.6f}"] + [f"{val:.6f}" for val in torque_history[i]]
+                f.write("\t".join(row_data) + "\n")
+
+        print(f"\n Saved torque data to:\n  - {npz_file}\n  - {mot_file}")
 
 
 if __name__ == "__main__":
