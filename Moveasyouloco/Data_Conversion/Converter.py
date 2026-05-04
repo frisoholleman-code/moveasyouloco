@@ -46,9 +46,9 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
                 break
 
     if header_idx == -1:
-        raise ValueError(f"❌ Malformed MOT file: 'endheader' not found in {mot_path.name}")
+        raise ValueError(f" Malformed MOT file: 'endheader' not found in {mot_path.name}")
 
-    print(f"📄 Data starts at line {header_idx} (0-indexed).")
+    print(f" Data starts at line {header_idx} (0-indexed).")
     dataframe = pd.read_csv(mot_path, skiprows=header_idx, sep=r'\s+')
     n_frames = len(dataframe)
 
@@ -100,7 +100,7 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
     time_values = dataframe['time'].values
     dt_values = np.diff(time_values)
     if not np.allclose(dt_values, dt_values[0], rtol=1e-3):
-        print("⚠️ Warning: Timestep is not uniform!")
+        print("️ WARNING: Timestep is not uniform!")
     dt = dt_values[0]
 
     xml_qvel = np.zeros((n_frames, model.nv), dtype=np.float64)
@@ -117,7 +117,7 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
     custom_start_height = xml_qpos[0, 2]
     z_offset = golden_start_height - custom_start_height
 
-    print(f"🔧 Applying vertical offset of {z_offset:.4f} meters to align height.")
+    print(f" Applying vertical offset of {z_offset:.4f} meters to align height.")
     xml_qpos[:, 2] += z_offset
 
     STANDARD_JOINT_NAMES = [str(n).strip() for n in standard['joint_names']]
@@ -148,7 +148,7 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
                 final_qvel[:, curr_qvel_idx] = xml_qvel[:, idx_qvel]
                 joint_to_final_idx[name] = curr_qpos_idx
             else:
-                print(f"⚠️ Warning: '{name}' not found in XML. Safely padding with zeros.")
+                print(f" WARNING: '{name}' not found in XML. Safely padding with zeros.")
 
             curr_qpos_idx += 1
             curr_qvel_idx += 1
@@ -157,11 +157,11 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
     # 7. Random Visual Verification Report
     # ==========================================
     if verify:
-        print(f"\n🔍 RANDOM VERIFICATION REPORT: (First 10 frames)")
+        print(f"\n RANDOM VERIFICATION REPORT: (First 10 frames)")
         valid_joints = [j for j in joint_to_final_idx.keys() if j != 'root' and j in dataframe.columns]
 
         if not valid_joints:
-            print("⚠️ No valid joints available to verify.")
+            print("No valid joints available to verify.")
         else:
             num_to_pick = min(5, len(valid_joints))
             random_joints = random.sample(valid_joints, num_to_pick)
@@ -196,8 +196,8 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
     output_path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(output_path, **dataset_dict)
 
-    print(f"✅ Conversion complete! Extracted {curr_qpos_idx} DOFs matching dataset.")
-    print(f"✅ Saved successfully to: {output_path}")
+    print(f"Conversion complete! Extracted {curr_qpos_idx} DOFs matching dataset.")
+    print(f"Saved successfully to: {output_path}")
 
 
 if __name__ == "__main__":

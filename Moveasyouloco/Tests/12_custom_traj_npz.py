@@ -25,16 +25,16 @@ custom_data = np.load(NPZ_PATH)
 
 
 if 'qpos' not in custom_data:
-    raise ValueError("❌ 'qpos' key not found in dataset!")
+    raise ValueError("WARNING: 'qpos' key not found in dataset!")
 
 qpos_traj = custom_data['qpos']
 N_steps = qpos_traj.shape[0]
-print(f"✅ Loaded trajectory with {N_steps} steps and {qpos_traj.shape[1]} DOFs.")
+print(f" Loaded trajectory with {N_steps} steps and {qpos_traj.shape[1]} DOFs.")
 
 # Extract frequency or default to 100 Hz
 if 'frequency' in custom_data:
     freq = float(custom_data['frequency'])
-    print(f"✅ Found 'frequency' in dataset: {freq} Hz")
+    print(f" Found 'frequency' in dataset: {freq} Hz")
 else:
     freq = 60.0  # Default frequency
 dt = 1.0 / freq
@@ -58,10 +58,10 @@ nv = model.nv
 # ==========================================
 # Ensure the dataset qpos matches the model's nq
 if qpos_traj.shape[1] > nq:
-    print(f"⚠️ Pruning {qpos_traj.shape[1] - nq} extra DOFs from qpos.")
+    print(f" Pruning {qpos_traj.shape[1] - nq} extra DOFs from qpos.")
     qpos_traj = qpos_traj[:, :nq]
 elif qpos_traj.shape[1] < nq:
-    print(f"⚠️ Padding {nq - qpos_traj.shape[1]} missing DOFs with zeros.")
+    print(f" Padding {nq - qpos_traj.shape[1]} missing DOFs with zeros.")
     qpos_traj = np.pad(qpos_traj, ((0, 0), (0, nq - qpos_traj.shape[1])), 'constant')
 
 # ==========================================
@@ -70,7 +70,7 @@ elif qpos_traj.shape[1] < nq:
 qvel_traj = np.zeros((N_steps, nv))
 
 if 'qvel' in custom_data:
-    print("✅ Found 'qvel' in dataset, loading directly...")
+    print(" Found 'qvel' in dataset, loading directly...")
     raw_qvel = custom_data['qvel']
     if raw_qvel.shape[1] > nv:
         qvel_traj = raw_qvel[:, :nv]
@@ -79,7 +79,7 @@ if 'qvel' in custom_data:
     else:
         qvel_traj = raw_qvel
 else:
-    print("⚠️ 'qvel' not found. Computing velocities using MuJoCo's native differentiator...")
+    print("WARNING: 'qvel' not found. Computing velocities using MuJoCo's native differentiator...")
     # We MUST use mj_differentiatePos because of quaternions (nq != nv for free joints)
     for i in range(N_steps - 1):
         mujoco.mj_differentiatePos(model, qvel_traj[i], dt, qpos_traj[i], qpos_traj[i + 1])
@@ -114,11 +114,11 @@ traj = Trajectory(traj_info, traj_data)
 # ==========================================
 # 6. Load and Replay
 # ==========================================
-print("\n▶️ Replaying Trajectory...")
+print("\n Replaying Trajectory...")
 env.load_trajectory(traj)
 
 if SHOW_INITIAL_STATE_ONLY:
-    print("🔒 Showing initial state indefinitely (SHOW_INITIAL_STATE_ONLY=True)")
+    print(" Showing initial state indefinitely (SHOW_INITIAL_STATE_ONLY=True)")
 
     # Set qpos and qvel to the initial frame from the trajectory
     env.data.qpos[:] = qpos_traj[0]
