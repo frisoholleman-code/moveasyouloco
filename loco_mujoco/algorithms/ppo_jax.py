@@ -125,7 +125,7 @@ class PPOJax(JaxRLAlgorithmBase):
                 optax.clip_by_global_norm(config.experiment.max_grad_norm),
                 optax.adamw(weight_decay=config.experiment.weight_decay, eps=1e-5,
                             learning_rate=lambda count: cls._linear_lr_schedule(count, config.experiment.num_minibatches,
-                                                                                config.experiment.update_epochs, config.lr,
+                                                                                config.experiment.update_epochs, config.experiment.lr,
                                                                                 config.experiment.num_updates))
             )
         else:

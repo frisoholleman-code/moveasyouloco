@@ -44,11 +44,19 @@ experiment:
     control_params: ${control_config.torque_control.control_params} 
     reward_type: MimicReward 
     reward_params:
+      action_rate_coeff: 0.0 ##original 0.0
       qpos_w_sum: 0.4 ##original 0.4
       qvel_w_sum: 0.2 ##original 0.2
       rpos_w_sum: 0.5 ##original 0.5
       rquat_w_sum: 0.3 ##original 0.3
       rvel_w_sum: 0.1 ##original 0.1
+      qpos_w_exp: 0.0 ##original 0.0
+      qvel_w_exp: 0.0 ##original 0.0
+      rpos_w_exp: 0.0 ##original 0.0
+      rquat_w_exp: 0.0 ##original 0.0
+      rvel_w_exp: 0.0 ##original 0.0
+      joint_acc_coeff: 0.0 ##original 0.0
+      joint_torque_coeff: 0.0 ##original 0.0
       sites_for_mimic:
         - upper_body_mimic 
         - left_hand_mimic 
@@ -60,7 +68,7 @@ experiment:
   num_envs: 2048 
   num_steps: 500 ##original 200
   record_n_steps: 300 ##original absent
-  total_timesteps: 100e7 ##original 300e6
+  total_timesteps: 50e6 ##original 300e6
   update_epochs: 8 ##original 4
   proportion_env_reward: 0.0 ##original 0.0
   num_minibatches: 128 #original 32
@@ -68,14 +76,14 @@ experiment:
   gae_lambda: 0.95 
   clip_eps: 0.2 
   init_std: 0.2 ##original 0.2
-  learnable_std: false ##original false
+  learnable_std: True ##original false
   ent_coef: 0.0 ##original 0.0
   vf_coef: 0.5 
   max_grad_norm: 0.5 ##original 0.5
   activation: tanh 
-  anneal_lr: false 
+  anneal_lr: false
   weight_decay: 0.0 ##original 0.0
-  normalize_env: true 
+  normalize_env: true #original true 
   debug: false 
   n_seeds: 1  # will automatically take seeds from 1 to n_seeds 
   vmap_across_seeds: true 
