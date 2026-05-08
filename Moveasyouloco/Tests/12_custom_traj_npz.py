@@ -18,7 +18,7 @@ print(BASE_DIR)
 SHOW_INITIAL_STATE_ONLY = False
 
 
-NPZ_PATH = BASE_DIR / "Data_Conversion" / "Output_Files" / "squat5_test_converted.npz"
+NPZ_PATH = BASE_DIR / "Data_Conversion" / "Output_Files" / "Friso9squat_test_converted.npz"
 custom_data = np.load(NPZ_PATH)
 
 if 'qpos' not in custom_data:

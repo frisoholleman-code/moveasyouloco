@@ -248,6 +248,5 @@ def experiment(config: DictConfig):
         traceback.print_exc(file=sys.stderr)
         raise
 
-
 if __name__ == "__main__":
     experiment()
