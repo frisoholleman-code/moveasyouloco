@@ -16,7 +16,6 @@ CSV_FILE_PATH = BASE_DIR / "outputs" / "butterfly-118" / "butterfly-118.csv"
 # 2. EASILY CHOOSE YOUR JOINTS HERE:
 JOINTS_TO_PLOT = [
     'mot_knee_angle_r',
-    'mot_knee_angle_l',
 ]
 
 # 3. Name of the output image file
