@@ -1,232 +1,275 @@
 import os
 import argparse
+import csv  # <-- ADDED for CSV output
+
+# 1. SET ENV VARS BEFORE JAX IMPORTS
+os.environ['XLA_FLAGS'] = '--xla_gpu_triton_gemm_any=True '
+
 import numpy as np
 import jax
 import jax.numpy as jnp
+import mujoco
 
 from loco_mujoco import TaskFactory
 from loco_mujoco.algorithms import PPOJax
 from loco_mujoco.trajectory import Trajectory
 from loco_mujoco.task_factories import CustomDatasetConf
-
+from loco_mujoco.environments import SkeletonTorque
 from omegaconf import OmegaConf
 
-os.environ['XLA_FLAGS'] = (
-    '--xla_gpu_triton_gemm_any=True ')
 
-# Set up argument parser
-parser = argparse.ArgumentParser(description='Run evaluation with PPOJax and analyze joint torques.')
-parser.add_argument('--path', type=str, required=True, help='Path to the agent pkl file')
-parser.add_argument('--n_steps', type=int, default=1000, help='Number of evaluation steps')
-parser.add_argument('--save_torques', action='store_true', help='Save joint torques to file')
-args = parser.parse_args()
+def main():
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Run evaluation with PPOJax and analyze joint torques.')
+    parser.add_argument('--path', type=str, required=True, help='Path to the agent pkl file')
+    parser.add_argument('--n_steps', type=int, default=1000, help='Number of evaluation steps')
+    parser.add_argument('--save_torques', action='store_true', help='Save joint torques to file')
+    args = parser.parse_args()
 
-# Use the path from command line arguments
-path = args.path
-agent_conf, agent_state = PPOJax.load_agent(path)
-config = agent_conf.config
+    # Load Agent
+    agent_conf, agent_state = PPOJax.load_agent(args.path)
+    config = agent_conf.config
+    factory = TaskFactory.get_factory_cls(config.experiment.task_factory.name)
 
-# get task factory
-factory = TaskFactory.get_factory_cls(config.experiment.task_factory.name)
+    # ==========================================
+    # --- PREPARE CUSTOM DATA & KINEMATICS ---
+    # ==========================================
+    factory_parameters = OmegaConf.to_container(config.experiment.task_factory.params, resolve=True)
 
-# ==========================================
-# --- THE INJECTION: HANDLE CUSTOM DATA ---
-# ==========================================
-factory_params = OmegaConf.to_container(config.experiment.task_factory.params, resolve=True)
-if "custom_dataset_conf" in factory_params:
-    conf_dict = factory_params["custom_dataset_conf"]
-    if "traj" in conf_dict and isinstance(conf_dict["traj"], str):
-        npz_path = conf_dict["traj"]
-        print(f"\n🔧 Intercepted string path in YAML: {npz_path}")
-        # Load the Trajectory object (qpos and qvel)
-        traj = Trajectory.load(npz_path)
+    if "custom_dataset_conf" in factory_parameters:
+        conf_dict = factory_parameters["custom_dataset_conf"]
+        if "traj" in conf_dict and isinstance(conf_dict["traj"], str):
+            npz_path = conf_dict["traj"]
+            print(f"\n Intercepted string path in YAML: {npz_path}")
 
-        # --- START KINEMATICS FIX ---
-        print("⚙️ Precomputing ALL missing physics data for JAX reward calculation...")
-        import mujoco
-        import numpy as np
-        import jax.numpy as jnp
-        from loco_mujoco.environments import SkeletonTorque
+            # Load Trajectory
+            traj = Trajectory.load(npz_path)
+            print(" Precomputing missing physics data for JAX reward calculation...")
 
-        # 1. Create a lightweight CPU environment directly to borrow the model
-        temp_env = SkeletonTorque()
-        mj_model = temp_env.get_model()
-        mj_data = mujoco.MjData(mj_model)
+            # Lightweight CPU env to borrow the model
+            temp_env = SkeletonTorque()
+            mj_model = temp_env.get_model()
+            mj_data = mujoco.MjData(mj_model)
 
-        # 2. Setup arrays based on the environment model
-        n_frames = traj.data.qpos.shape[0]
-        nsite = mj_model.nsite
-        nbody = mj_model.nbody
+            n_frames = traj.data.qpos.shape[0]
+            nsite, nbody = mj_model.nsite, mj_model.nbody
 
-        site_xpos = np.zeros((n_frames, nsite, 3), dtype=np.float32)
-        site_xmat = np.zeros((n_frames, nsite, 9), dtype=np.float32)
-        subtree_com = np.zeros((n_frames, nbody, 3), dtype=np.float32)
-        cvel = np.zeros((n_frames, nbody, 6), dtype=np.float32)
-        xpos = np.zeros((n_frames, nbody, 3), dtype=np.float32)
-        xquat = np.zeros((n_frames, nbody, 4), dtype=np.float32)
+            # Pre-allocate arrays
+            site_xpos = np.zeros((n_frames, nsite, 3), dtype=np.float32)
+            site_xmat = np.zeros((n_frames, nsite, 9), dtype=np.float32)
+            subtree_com = np.zeros((n_frames, nbody, 3), dtype=np.float32)
+            cvel = np.zeros((n_frames, nbody, 6), dtype=np.float32)
+            xpos = np.zeros((n_frames, nbody, 3), dtype=np.float32)
+            xquat = np.zeros((n_frames, nbody, 4), dtype=np.float32)
 
-        # 3. Calculate full forward kinematics and velocities for every frame
-        qpos_np = np.array(traj.data.qpos)
-        qvel_np = np.array(traj.data.qvel)
+            qpos_np = np.array(traj.data.qpos)
+            qvel_np = np.array(traj.data.qvel)
 
-        for i in range(n_frames):
-            mj_data.qpos[:] = qpos_np[i]
-            mj_data.qvel[:] = qvel_np[i]
+            # Compute full kinematics
+            for i in range(n_frames):
+                mj_data.qpos[:] = qpos_np[i]
+                mj_data.qvel[:] = qvel_np[i]
 
-            # Compute kinematics AND center-of-mass velocities
-            mujoco.mj_kinematics(mj_model, mj_data)
-            mujoco.mj_comPos(mj_model, mj_data)
-            mujoco.mj_comVel(mj_model, mj_data)
+                mujoco.mj_kinematics(mj_model, mj_data)
+                mujoco.mj_comPos(mj_model, mj_data)
+                mujoco.mj_comVel(mj_model, mj_data)
 
-            site_xpos[i] = mj_data.site_xpos.copy()
-            site_xmat[i] = mj_data.site_xmat.copy()
-            subtree_com[i] = mj_data.subtree_com.copy()
-            cvel[i] = mj_data.cvel.copy()
-            xpos[i] = mj_data.xpos.copy()
-            xquat[i] = mj_data.xquat.copy()
+                site_xpos[i] = mj_data.site_xpos
+                site_xmat[i] = mj_data.site_xmat
+                subtree_com[i] = mj_data.subtree_com
+                cvel[i] = mj_data.cvel
+                xpos[i] = mj_data.xpos
+                xquat[i] = mj_data.xquat
 
-        # 4. Inject ALL computed data back into the Trajectory
-        traj.data = traj.data.replace(
-            site_xpos=jnp.array(site_xpos),
-            site_xmat=jnp.array(site_xmat),
-            subtree_com=jnp.array(subtree_com),
-            cvel=jnp.array(cvel),
-            xpos=jnp.array(xpos),
-            xquat=jnp.array(xquat)
+            # Inject into trajectory
+            traj.data = traj.data.replace(
+                site_xpos=jnp.array(site_xpos),
+                site_xmat=jnp.array(site_xmat),
+                subtree_com=jnp.array(subtree_com),
+                cvel=jnp.array(cvel),
+                xpos=jnp.array(xpos),
+                xquat=jnp.array(xquat)
+            )
+            print("COMPLETE: Full Physics profile baked into Trajectory for JAX reward calculation")
+
+            factory_parameters["custom_dataset_conf"] = CustomDatasetConf(traj)
+            print(f"COMPLETE: Custom dataset ready! Dataset length: {n_frames} frames\n")
+
+    # ==========================================
+    # --- ENVIRONMENT SETUP ---
+    # ==========================================
+    OmegaConf.set_struct(config, False)
+    config.experiment.env_params["headless"] = False
+    config.experiment.env_params["goal_type"] = "GoalTrajMimic"
+
+    env = factory.make(**config.experiment.env_params, **factory_parameters)
+
+    # Handle standard vs gym environment data access
+    mj_data = getattr(env, "data", None)
+    if mj_data is None and hasattr(env, "unwrapped"):
+        mj_data = getattr(env.unwrapped, "data", None)
+
+    if mj_data is None:
+        print(" Notice: Running MJX or stateless environment. Using theoretical torque calculation fallback.")
+
+    n_actuators = env.model.nu
+    torque_history = np.zeros((args.n_steps, n_actuators))
+
+    actuator_names = [mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_ACTUATOR, i)
+                      for i in range(n_actuators)]
+
+    print(f"\n Evaluating joint torques for {args.n_steps} steps...")
+    print(f" Tracking {n_actuators} actuators: {actuator_names}")
+
+    # ==========================================
+    # --- EVALUATION LOOP ---
+    # ==========================================
+    if hasattr(env, "seed"):
+        env.seed(42)
+
+    reset_result = env.reset()
+    obs = reset_result[0] if isinstance(reset_result, tuple) else reset_result
+
+    done = False
+    step_count = 0
+
+    while not done and step_count < args.n_steps:
+        # Evaluate with frozen run_stats (no 'mutable' flag needed for pure inference)
+        # Assuming the network supports standard flax.linen apply without state updates in eval
+        y, _ = agent_conf.network.apply(
+            {'params': agent_state.train_state.params,
+             'run_stats': agent_state.train_state.run_stats},
+            obs,
+            mutable=["run_stats"]
         )
-        print("✅ Full Physics profile perfectly baked into Trajectory!")
-        # --- END KINEMATICS FIX ---
 
-        # Replace the nested dictionary with the actual Class object
-        factory_params["custom_dataset_conf"] = CustomDatasetConf(traj)
-        print("✅ Custom dataset ready for evaluation!\n")
+        pi = y[0] if isinstance(y, tuple) else y  # Handle different return structures
+        action = jnp.atleast_2d(pi.mode())
 
-print(f"Dataset length: {traj.data.qpos.shape[0]} frames")
+        next_obs, reward, terminated, truncated, info = env.step(action)
+        done = terminated or truncated
+        env.render()
 
-# create env - use factory_params dict instead of config
-OmegaConf.set_struct(config, False)  # Allow modifications
-config.experiment.env_params["headless"] = False
-config.experiment.env_params["goal_type"] = "GoalTrajMimic"  # Use basic mimic without site visualization
+        # Extract Ground Truth Torques directly from the simulator
+        # This accounts for gear ratios, force limits, and control limits naturally
+        # Calculate theoretical torque directly from the neural network action
+        raw_action = np.array(action).flatten()
+        clipped_action = np.clip(raw_action, -1.0, 1.0)
 
-env = factory.make(**config.experiment.env_params, **factory_params)
+        # Extract gear ratios (wrapped in np.array to safely handle both CPU and JAX mjx.Models)
+        gear_ratios = np.array(env.model.actuator_gear[:, 0])
 
-# ==========================================
-# TORQUE EVALUATION
-# ==========================================
-print(f"\n🔧 Evaluating joint torques for {args.n_steps} steps...")
+        # Calculate commanded torque
+        true_torques = clipped_action * gear_ratios
 
-# Initialize arrays to store torque data
-n_actuators = env.model.nu  # Number of actuators
-torque_history = np.zeros((args.n_steps, n_actuators))
-time_steps = np.arange(args.n_steps)
+        torque_history[step_count] = true_torques
+        obs = next_obs
+        step_count += 1
 
-# Get actuator names for reference
-actuator_names = []
-for i in range(n_actuators):
-    actuator_name = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_ACTUATOR, i)
-    actuator_names.append(actuator_name)
+    print(f"COMPLETE: Collected torque data for {step_count} steps")
 
-print(f"📊 Tracking {n_actuators} actuators: {actuator_names}")
+    # ==========================================
+    # --- TORQUE ANALYSIS ---
+    # ==========================================
+    print("\n JOINT TORQUE ANALYSIS")
+    print("=" * 50)
 
-# Reset environment
-reset_result = env.reset()
-if len(reset_result) == 2:
-    obs, info = reset_result
-else:
-    obs = reset_result[0]  # Assume obs is first
-    info = {}  # Default empty info
+    # Initialize a list to hold the row data for the CSV
+    csv_stats = []
 
-done = False
-step_count = 0
+    for i, name in enumerate(actuator_names):
+        torques = torque_history[:step_count, i]
+        mean_val = np.mean(np.abs(torques))
+        max_val = np.max(np.abs(torques))
+        std_val = np.std(torques)
+        rms_val = np.sqrt(np.mean(torques ** 2))
 
-rng = jax.random.PRNGKey(0)  # Initialize random key
+        print(f"\n{name}:")
+        print(f"  Mean (abs): {mean_val:.2f} Nm")
+        print(f"  Max (abs) : {max_val:.2f} Nm")
+        print(f"  Std Dev   : {std_val:.2f} Nm")
+        print(f"  RMS       : {rms_val:.2f} Nm")
 
-while not done and step_count < args.n_steps:
-    # Get action from trained policy
-    rng, _rng = jax.random.split(rng)
-    y, updates = agent_conf.network.apply({'params': agent_state.train_state.params,
-                                           'run_stats': agent_state.train_state.run_stats},
-                                          obs, mutable=["run_stats"])
+        # Append data to the CSV structure
+        csv_stats.append({
+            "Actuator": name,
+            "Mean_abs_Nm": f"{mean_val:.4f}",
+            "Max_abs_Nm": f"{max_val:.4f}",
+            "Std_Dev_Nm": f"{std_val:.4f}",
+            "RMS_Nm": f"{rms_val:.4f}"
+        })
 
-    # --- THE FIX ---
-    agent_state = agent_state.replace(
-        train_state=agent_state.train_state.replace(run_stats=updates['run_stats'])
-    )
-    # ---------------
+    all_torques = torque_history[:step_count].flatten()
+    overall_mean = np.mean(np.abs(all_torques))
+    overall_max = np.max(np.abs(all_torques))
+    overall_rms = np.sqrt(np.mean(all_torques ** 2))
 
-    pi, _ = y
-    action = pi.mode()
-    action = jnp.atleast_2d(action)
+    print("\n OVERALL STATISTICS")
+    print("=" * 50)
+    print(f"  Overall Mean: {overall_mean:.2f} Nm")
+    print(f"  Overall Max : {overall_max:.2f} Nm")
+    print(f"  Overall RMS : {overall_rms:.2f} Nm")
 
-    next_obs, reward, terminated, truncated, info = env.step(action)
-    done = terminated or truncated
+    # Add the Overall metrics to the bottom of the CSV
+    csv_stats.append({
+        "Actuator": "OVERALL",
+        "Mean_abs_Nm": f"{overall_mean:.4f}",
+        "Max_abs_Nm": f"{overall_max:.4f}",
+        "Std_Dev_Nm": "N/A",  # Left as N/A since overall std-dev isn't printed
+        "RMS_Nm": f"{overall_rms:.4f}"
+    })
 
-    # Render if you want to see the visualizer
-    env.render()
+    # Save outputs to CSV
+    base_path = os.path.splitext(args.path)[0]
+    csv_file = f"{base_path}_torque_stats.csv"
 
-    # 1. Extract the raw neural network action
-    raw_action = np.array(action).flatten()
+    with open(csv_file, mode='w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=["Actuator", "Mean_abs_Nm", "Max_abs_Nm", "Std_Dev_Nm", "RMS_Nm"])
+        writer.writeheader()
+        writer.writerows(csv_stats)
 
-    # --- THE FIX: Clip the raw action to [-1.0, 1.0] before calculating ---
-    clipped_action = np.clip(raw_action, -1.0, 1.0)
+    print(f"\n Saved torque statistics CSV to: {csv_file}")
 
-    # 2. Extract the gear multipliers
-    gear_ratios = env.model.actuator_gear[:, 0]
+    if args.save_torques:
+        # 1. Save standard .npz file
+        npz_file = f"{base_path}_torques.npz"
+        np.savez(npz_file,
+                 torque_history=torque_history[:step_count],
+                 actuator_names=actuator_names,
+                 time_steps=np.arange(step_count))
 
-    # 3. Calculate the true physical torque applied to the simulation
-    true_torques = clipped_action * gear_ratios
+        # 2. Save OpenSim .mot file
+        mot_file = f"{base_path}_torques.mot"
 
-    # 4. Record the true torques
-    torque_history[step_count] = true_torques
+        dt = getattr(env, "dt", None)
+        if dt is None and hasattr(env, "unwrapped"):
+            dt = getattr(env.unwrapped, "dt", None)
 
-    obs = next_obs
-    step_count += 1
+        if dt is None:
+            dt = 0.01666666  # Final safe fallback for MJX environments
 
-print(f"✅ Collected torque data for {step_count} steps")
+        time_array = np.arange(step_count) * dt
 
-# ==========================================
-# TORQUE ANALYSIS
-# ==========================================
-print("\n📈 JOINT TORQUE ANALYSIS")
-print("=" * 50)
+        with open(mot_file, 'w') as f:
+            # Write OpenSim .mot header
+            f.write(f"Torques_from_{os.path.basename(base_path)}\n")
+            f.write("version=1\n")
+            f.write(f"nRows={step_count}\n")
+            f.write(f"nColumns={n_actuators + 1}\n")  # +1 for the time column
+            f.write("inDegrees=yes\n")
+            f.write("endheader\n")
 
-# Calculate statistics for each actuator
-for i, name in enumerate(actuator_names):
-    torques = torque_history[:step_count, i]
+            # Write column headers (time + actuator names)
+            header_row = ["time"] + actuator_names
+            f.write("\t".join(header_row) + "\n")
 
-    # Basic statistics
-    mean_torque = np.mean(np.abs(torques))  # Use absolute values for magnitude
-    max_torque = np.max(np.abs(torques))
-    std_torque = np.std(torques)
-    rms_torque = np.sqrt(np.mean(torques ** 2))  # RMS torque
+            # Write row data
+            for i in range(step_count):
+                row_data = [f"{time_array[i]:.6f}"] + [f"{val:.6f}" for val in torque_history[i]]
+                f.write("\t".join(row_data) + "\n")
 
-    # --- FIX 1: Corrected print statements with properly formatted f-strings ---
-    print(f"\n{name}:")
-    print(f"  Mean (abs): {mean_torque:.2f} Nm")
-    print(f"  Max (abs) : {max_torque:.2f} Nm")
-    print(f"  Std Dev   : {std_torque:.2f} Nm")
-    print(f"  RMS       : {rms_torque:.2f} Nm")
+        print(f"\n Saved full torque data series to:\n  - {npz_file}\n  - {mot_file}")
 
-# Overall statistics
-all_torques = torque_history[:step_count].flatten()
-overall_mean = np.mean(np.abs(all_torques))
-overall_max = np.max(np.abs(all_torques))
-overall_rms = np.sqrt(np.mean(all_torques ** 2))
 
-print("\n🎯 OVERALL STATISTICS")
-print("=" * 50)
-# --- FIX 1 (cont.): Corrected overall print statements ---
-print(f"  Overall Mean: {overall_mean:.2f} Nm")
-print(f"  Overall Max : {overall_max:.2f} Nm")
-print(f"  Overall RMS : {overall_rms:.2f} Nm")
-
-# Save torque data if requested
-if args.save_torques:
-    output_file = f"{os.path.splitext(path)[0]}_torques.npz"
-    np.savez(output_file,
-             torque_history=torque_history[:step_count],
-             actuator_names=actuator_names,
-             time_steps=time_steps[:step_count])
-    print(f"\n💾 Saved torque data to: {output_file}")
-
-print("\n✅ Torque evaluation complete!")
+if __name__ == "__main__":
+    main()

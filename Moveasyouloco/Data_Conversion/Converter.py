@@ -11,6 +11,8 @@ from scipy.spatial.transform import Rotation as rot
 import mujoco
 import random
 
+from wandb import controller
+
 # ==========================================
 # 0. CONFIGURATION
 # ==========================================
@@ -20,23 +22,23 @@ INPUT_DIR = BASE_DIR / "Input_Files"
 OUTPUT_DIR = BASE_DIR / "Output_Files"
 MODEL_DIR = BASE_DIR.parent / "Models" / "skeleton"
 
-MOT_FILE_PATH = INPUT_DIR / "squat5.mot"  # Input path, take from Input_Files.
-XML_MODEL_PATH = MODEL_DIR / "skeleton_muscle.xml"  # Path to xml model in Models/skeleton.
-GOLDEN_NPZ_PATH = BASE_DIR/"Control_Data" / "walk1_subject5 _skeletal_muscle.npz"  # Control data walk1subject5
-OUTPUT_NPZ_PATH = OUTPUT_DIR / f"{MOT_FILE_PATH.stem}_converted_skeletal_muscle.npz"  # Output path for the converted .npz file in Output_Files
+MOT_FILE_PATH = INPUT_DIR / "Friso9squat.mot"  # Input path, take from Input_Files.
+XML_MODEL_PATH = MODEL_DIR / "skeleton_torque.xml"  # Path to xml model in Models/skeleton.
+CONTROL_NPZ_PATH = BASE_DIR / "Control_Data" / "walk1_subject5.npz"  # Control data walk1subject5
+OUTPUT_NPZ_PATH = OUTPUT_DIR / f"{MOT_FILE_PATH.stem}_test_converted.npz"  # Output path for the converted .npz file in Output_Files
 
 # Set to True to print a visual mapping comparison for 5 random joints
 ENABLE_VERIFICATION = True
 
 # Joints that require angle inversion (e.g., due to coordinate system differences)
 JOINTS_TO_INVERT = {"knee_angle_r", "knee_angle_l"}
+INVERT_KNEE = False
 
-
-def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, output_path: Path, verify: bool = False):
-    print(f"🚀 Starting conversion for: {mot_path.name}")
+def convert_mot_to_npz(mot_path: Path, xml_path: Path, control_npz_path: Path, output_path: Path, verify: bool = False):
+    print(f"Conversion initiated, starting conversion for: {mot_path.name}")
 
     # ==========================================
-    # 1. Parse the .mot file Robustly
+    # 1. Parse the .mot file and Extract Data
     # ==========================================
     header_idx = -1
     with open(mot_path, 'r') as f:
@@ -46,9 +48,9 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
                 break
 
     if header_idx == -1:
-        raise ValueError(f"❌ Malformed MOT file: 'endheader' not found in {mot_path.name}")
+        raise ValueError(f" Malformed MOT file: 'endheader' not found in {mot_path.name}")
 
-    print(f"📄 Data starts at line {header_idx} (0-indexed).")
+    print(f" Data starts at line {header_idx} (0-indexed).")
     dataframe = pd.read_csv(mot_path, skiprows=header_idx, sep=r'\s+')
     n_frames = len(dataframe)
 
@@ -74,7 +76,7 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
 
     R_ALIGN = rot.from_euler('x', 90, degrees=True)
     euler_angles = np.column_stack((tilt, list_angle, rotation))
-    rot_os = rot.from_euler('zxy', euler_angles, degrees=True)
+    rot_os = rot.from_euler('ZXY', euler_angles, degrees=True)
 
     quats = (R_ALIGN * rot_os).as_quat()
     xml_qpos[:, 3:7] = quats[:, [3, 0, 1, 2]]
@@ -89,7 +91,7 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
             joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, mj_name)
             angle = np.deg2rad(dataframe[mj_name].values)
 
-            if mj_name in JOINTS_TO_INVERT:
+            if mj_name in JOINTS_TO_INVERT and INVERT_KNEE is True:
                 angle *= -1.0
 
             xml_qpos[:, model.jnt_qposadr[joint_id]] = angle
@@ -100,7 +102,7 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
     time_values = dataframe['time'].values
     dt_values = np.diff(time_values)
     if not np.allclose(dt_values, dt_values[0], rtol=1e-3):
-        print("⚠️ Warning: Timestep is not uniform!")
+        print("️ WARNING: Timestep is not uniform. Using the first timestep for velocity calculation, but results may be inaccurate.")
     dt = dt_values[0]
 
     xml_qvel = np.zeros((n_frames, model.nv), dtype=np.float64)
@@ -111,13 +113,13 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
     # ==========================================
     # 6. Stencil Extraction (Matching Golden NPZ)
     # ==========================================
-    standard = dict(np.load(golden_npz_path, allow_pickle=True))
+    standard = dict(np.load(control_npz_path, allow_pickle=True))
 
-    golden_start_height = standard['qpos'][0, 2]
+    control_start_height = standard['qpos'][0, 2]
     custom_start_height = xml_qpos[0, 2]
-    z_offset = golden_start_height - custom_start_height
+    z_offset = control_start_height - custom_start_height
 
-    print(f"🔧 Applying vertical offset of {z_offset:.4f} meters to align height.")
+    print(f" Applying vertical offset of {z_offset:.4f} meters to match original .mot file.")
     xml_qpos[:, 2] += z_offset
 
     STANDARD_JOINT_NAMES = [str(n).strip() for n in standard['joint_names']]
@@ -148,7 +150,7 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
                 final_qvel[:, curr_qvel_idx] = xml_qvel[:, idx_qvel]
                 joint_to_final_idx[name] = curr_qpos_idx
             else:
-                print(f"⚠️ Warning: '{name}' not found in XML. Safely padding with zeros.")
+                print(f" WARNING: '{name}' not found in XML. Padding with zeros.")
 
             curr_qpos_idx += 1
             curr_qvel_idx += 1
@@ -157,11 +159,14 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
     # 7. Random Visual Verification Report
     # ==========================================
     if verify:
-        print(f"\n🔍 RANDOM VERIFICATION REPORT: (First 10 frames)")
-        valid_joints = [j for j in joint_to_final_idx.keys() if j != 'root' and j in dataframe.columns]
+        print(f"\n RANDOM VERIFICATION REPORT: (First 10 frames)")
+        valid_joints = [j for j in joint_to_final_idx.keys() if j in dataframe.columns]
+
+        print(valid_joints)
+
 
         if not valid_joints:
-            print("⚠️ No valid joints available to verify.")
+            print("No valid joints available to verify.")
         else:
             num_to_pick = min(5, len(valid_joints))
             random_joints = random.sample(valid_joints, num_to_pick)
@@ -196,15 +201,15 @@ def convert_mot_to_npz(mot_path: Path, xml_path: Path, golden_npz_path: Path, ou
     output_path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(output_path, **dataset_dict)
 
-    print(f"✅ Conversion complete! Extracted {curr_qpos_idx} DOFs matching dataset.")
-    print(f"✅ Saved successfully to: {output_path}")
+    print(f"Conversion complete! Extracted {curr_qpos_idx} DOFs.")
+    print(f"Saved to: {output_path}")
 
 
 if __name__ == "__main__":
     convert_mot_to_npz(
         mot_path=MOT_FILE_PATH,
         xml_path=XML_MODEL_PATH,
-        golden_npz_path=GOLDEN_NPZ_PATH,
+        control_npz_path=CONTROL_NPZ_PATH,
         output_path=OUTPUT_NPZ_PATH,
         verify=ENABLE_VERIFICATION
     )
