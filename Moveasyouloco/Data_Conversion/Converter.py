@@ -22,7 +22,7 @@ INPUT_DIR = BASE_DIR / "Input_Files"
 OUTPUT_DIR = BASE_DIR / "Output_Files"
 MODEL_DIR = BASE_DIR.parent / "Models" / "skeleton"
 
-MOT_FILE_PATH = INPUT_DIR / "Friso9squat.mot"  # Input path, take from Input_Files.
+MOT_FILE_PATH = OUTPUT_DIR / "squat5_smoothed.mot"  # Input path, take from Input_Files.
 XML_MODEL_PATH = MODEL_DIR / "skeleton_torque.xml"  # Path to xml model in Models/skeleton.
 CONTROL_NPZ_PATH = BASE_DIR / "Control_Data" / "walk1_subject5.npz"  # Control data walk1subject5
 OUTPUT_NPZ_PATH = OUTPUT_DIR / f"{MOT_FILE_PATH.stem}_test_converted.npz"  # Output path for the converted .npz file in Output_Files
@@ -32,7 +32,7 @@ ENABLE_VERIFICATION = True
 
 # Joints that require angle inversion (e.g., due to coordinate system differences)
 JOINTS_TO_INVERT = {"knee_angle_r", "knee_angle_l"}
-INVERT_KNEE = False
+INVERT_KNEE = True
 
 def convert_mot_to_npz(mot_path: Path, xml_path: Path, control_npz_path: Path, output_path: Path, verify: bool = False):
     print(f"Conversion initiated, starting conversion for: {mot_path.name}")

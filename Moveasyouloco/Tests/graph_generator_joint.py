@@ -15,11 +15,12 @@ CSV_FILE_PATH = BASE_DIR / "outputs" / "butterfly-118" / "butterfly-118.csv"
 
 # 2. EASILY CHOOSE YOUR JOINTS HERE:
 JOINTS_TO_PLOT = [
-    'mot_knee_angle_r',
+    'mot_ankle_angle_l',
+    'mot_ankle_angle_r',
 ]
 
 # 3. Name of the output image file
-OUTPUT_FILENAME = BASE_DIR / "outputs" / "butterfly-118" / "butterfly-118_torque_plot.png"
+OUTPUT_FILENAME = BASE_DIR / "outputs" / "butterfly-118" / "butterfly-118_torque_plot_ankle.png"
 
 # ==========================================
 def generate_torque_plot(csv_file, joints, output_file):

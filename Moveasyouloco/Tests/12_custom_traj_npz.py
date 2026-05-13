@@ -4,21 +4,27 @@ import numpy as np
 import mujoco
 import mujoco.viewer
 import time
+import cv2
+from tqdm import tqdm
 
 from loco_mujoco.environments import SkeletonTorque
 from loco_mujoco.trajectory import Trajectory, TrajectoryInfo, TrajectoryModel, TrajectoryData
 from pathlib import Path
 
-# ========================================== 
+# ==========================================
 # 1. Setup & Load Data
 # ==========================================
 # Extract base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 print(BASE_DIR)
+
 SHOW_INITIAL_STATE_ONLY = False
+SAVE_VIDEO = False
+VIDEO_FILENAME = "trajectory_render.mp4"
+VIDEO_OUTPUT_PATH = BASE_DIR / "Data_Conversion" / "Output_Files" / VIDEO_FILENAME
 
 
-NPZ_PATH = BASE_DIR / "Data_Conversion" / "Output_Files" / "Friso9squat_test_converted.npz"
+NPZ_PATH = BASE_DIR / "Data_Conversion" / "Output_Files" / "squat5_smoothed_test_converted.npz"
 custom_data = np.load(NPZ_PATH)
 
 if 'qpos' not in custom_data:
@@ -36,7 +42,7 @@ else:
     freq = 60.0  # Default frequency
 dt = 1.0 / freq
 
-#DITISEENTESTLINE
+# DITISEENTESTLINE
 # ==========================================
 # 2. Initialize Environment
 # ==========================================
@@ -109,12 +115,49 @@ traj_data = TrajectoryData(
 traj = Trajectory(traj_info, traj_data)
 
 # ==========================================
-# 6. Load and Replay
+# 6. Load and Replay / Record
 # ==========================================
 print("\n Replaying Trajectory...")
 env.load_trajectory(traj)
 
-if SHOW_INITIAL_STATE_ONLY:
+if SAVE_VIDEO:
+    import cv2
+    from tqdm import tqdm
+
+    print(f" Rendering and saving video to: {VIDEO_OUTPUT_PATH}...")
+
+    # Initialize MuJoCo offscreen renderer
+    width, height = 640, 480
+    renderer = mujoco.Renderer(model, height=height, width=width)
+
+    # Initialize OpenCV VideoWriter
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    video_writer = cv2.VideoWriter(str(VIDEO_OUTPUT_PATH), fourcc, freq, (width, height))
+
+    # Loop exactly once through the dataset
+    for i in tqdm(range(N_steps), desc="Saving Video"):
+        # Set state to current trajectory frame
+        env.data.qpos[:] = qpos_traj[i]
+        env.data.qvel[:] = qvel_traj[i]
+
+        # Forward kinematics to update the geometry
+        mujoco.mj_forward(model, env.data)
+
+        # Render frame (using default free camera -1)
+        renderer.update_scene(env.data, camera=-1)
+        frame = renderer.render()
+
+        # OpenCV expects BGR color format
+        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+        # Write to the MP4 file
+        video_writer.write(frame_bgr)
+
+    # CRITICAL: Clean up properly (Notice we removed destroyAllWindows!)
+    video_writer.release()
+
+    print(f"\n✅ Video saved successfully to:\n{VIDEO_OUTPUT_PATH}")
+elif SHOW_INITIAL_STATE_ONLY:
     print(" Showing initial state indefinitely (SHOW_INITIAL_STATE_ONLY=True)")
 
     # Set qpos and qvel to the initial frame from the trajectory
@@ -128,8 +171,8 @@ if SHOW_INITIAL_STATE_ONLY:
     with mujoco.viewer.launch_passive(model, env.data) as viewer:
         # viewer.is_running() keeps the loop alive until you close the window
         while viewer.is_running():
-            viewer.sync()       # Synchronizes the viewer with the data state
-            time.sleep(0.05)    # Pauses briefly so your CPU and the GUI event loop can breathe
+            viewer.sync()  # Synchronizes the viewer with the data state
+            time.sleep(0.05)  # Pauses briefly so your CPU and the GUI event loop can breathe
 
 else:
     # Call play_trajectory
