@@ -166,7 +166,7 @@ def main():
         obs = next_obs
         step_count += 1
 
-    print(f"COMPLETE: Collected torque data for {step_count} steps")
+    print(f"COMPLETE: Collected torque data for {step_count} steps (excluding last 2 for analysis)")
 
     # ==========================================
     # --- TORQUE ANALYSIS ---
@@ -178,7 +178,7 @@ def main():
     csv_stats = []
 
     for i, name in enumerate(actuator_names):
-        torques = torque_history[:step_count, i]
+        torques = torque_history[:step_count-2, i]
         mean_val = np.mean(np.abs(torques))
         max_val = np.max(np.abs(torques))
         std_val = np.std(torques)
@@ -199,7 +199,7 @@ def main():
             "RMS_Nm": f"{rms_val:.4f}"
         })
 
-    all_torques = torque_history[:step_count].flatten()
+    all_torques = torque_history[:step_count-2].flatten()
     overall_mean = np.mean(np.abs(all_torques))
     overall_max = np.max(np.abs(all_torques))
     overall_rms = np.sqrt(np.mean(all_torques ** 2))
@@ -234,7 +234,7 @@ def main():
         # 1. Save standard .npz file
         npz_file = f"{base_path}_torques.npz"
         np.savez(npz_file,
-                 torque_history=torque_history[:step_count],
+                 torque_history=torque_history[:step_count-2],
                  actuator_names=actuator_names,
                  time_steps=np.arange(step_count))
 
@@ -264,7 +264,7 @@ def main():
             f.write("\t".join(header_row) + "\n")
 
             # Write row data
-            for i in range(step_count):
+            for i in range(step_count - 2):
                 row_data = [f"{time_array[i]:.6f}"] + [f"{val:.6f}" for val in torque_history[i]]
                 f.write("\t".join(row_data) + "\n")
 
