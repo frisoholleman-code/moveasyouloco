@@ -108,7 +108,6 @@ def experiment(config: DictConfig):
                 print("⚙️ Precomputing ALL missing physics data for JAX reward calculation...")
                 import mujoco
                 import numpy as np
-                import jax.numpy as jnp
                 from loco_mujoco.environments import SkeletonTorque
 
                 # 1. Create a lightweight CPU environment directly to borrow the model
