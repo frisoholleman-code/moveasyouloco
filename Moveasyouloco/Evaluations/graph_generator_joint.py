@@ -1,3 +1,5 @@
+import argparse
+import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
@@ -7,23 +9,14 @@ from pathlib import Path
 # --- CONFIGURATION ---
 # ==========================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-
-# 1. Path to your CSV file
-CSV_FILE_PATH = BASE_DIR / "outputs" / "butterfly-118" / "butterfly-118.csv"
-
-# 2. EASILY CHOOSE YOUR JOINTS HERE:
-JOINTS_TO_PLOT = [
-    'mot_ankle_angle_l',
-    'mot_ankle_angle_r',
-]
-
-# 3. Name of the output image file
-OUTPUT_FILENAME = BASE_DIR / "outputs" / "butterfly-118" / "butterfly-118_torque_plot_ankle.png"
+parser = argparse.ArgumentParser(description='generate graph from .csv')
+parser.add_argument('--path', type=str, required=True, help='path to the .csv file')
+parser.add_argument('--outputpath', type=str, required=True, help='path to the output image file')
+parser.add_argument('--joints', nargs='+', required=True, help='list of joints to plot (space-separated)')
+args = parser.parse_args()
 
 # ==========================================
-def generate_torque_plot(csv_file, joints, output_file):
+def generate_torque_plot(csv_file, output_file, joints):
     print(f" Loading data from {csv_file}...")
 
     # Load the CSV data
@@ -76,6 +69,4 @@ def generate_torque_plot(csv_file, joints, output_file):
     # Display the plot in a window
     plt.show()
 
-
-if __name__ == "__main__":
-    generate_torque_plot(CSV_FILE_PATH, JOINTS_TO_PLOT, OUTPUT_FILENAME)
+generate_torque_plot(args.path, args.outputpath, args.joints)
