@@ -13,6 +13,7 @@ experiment:
         traj: Moveasyouloco/Data_Conversion/Output_Files/squat5_smoothed_test_converted.npz
   env_params:
     env_name: MjxSkeletonTorque 
+    model_path: Moveasyouloco/Models/skeleton/skeleton_torque.xml
     use_mjwarp: True 
     nconmax: 10000 
     njmax: 95

@@ -1,7 +1,10 @@
 import sys
 import os
 import argparse
-import csv  # <-- ADDED for CSV output
+import csv
+
+from loco_mujoco.core.terminal_state_handler import traj
+from loco_mujoco.core.utils import env
 
 # 1. SET ENV VARS BEFORE JAX IMPORTS
 os.environ['XLA_FLAGS'] = '--xla_gpu_triton_gemm_any=True '
@@ -46,6 +49,7 @@ def main():
             # Load Trajectory
             traj = Trajectory.load(npz_path)
             print(" Precomputing missing physics data for JAX reward calculation...")
+
             # Lightweight CPU env to borrow the model
             temp_env = SkeletonTorque()
             mj_model = temp_env.get_model()
@@ -95,6 +99,13 @@ def main():
             factory_parameters["custom_dataset_conf"] = CustomDatasetConf(traj)
             print(f"COMPLETE: Custom dataset ready! Dataset length: {n_frames} frames\n")
 
+            # Force evaluation to start from the beginning of the trajectory
+            factory_parameters.setdefault("th_params", {})
+            factory_parameters["th_params"].update({
+                "random_start": False,
+                "fixed_start_conf": (0, 0)
+            })
+
     # ==========================================
     # --- ENVIRONMENT SETUP ---
     # ==========================================
@@ -117,9 +128,6 @@ def main():
 
     actuator_names = [mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_ACTUATOR, i).replace("mot_", "")
                       for i in range(n_actuators)]
-
-    print(f"\n Evaluating joint torques for {args.n_steps} steps...")
-    print(f" Tracking {n_actuators} actuators: {actuator_names}")
 
     # ==========================================
     # --- EVALUATION LOOP ---
@@ -166,29 +174,20 @@ def main():
         obs = next_obs
         step_count += 1
 
-    print(f"COMPLETE: Collected torque data for {step_count} steps (excluding last 2 for analysis)")
+    print(f"COMPLETE: Collected torque data for {step_count}")
 
     # ==========================================
     # --- TORQUE ANALYSIS ---
     # ==========================================
-    print("\n JOINT TORQUE ANALYSIS")
-    print("=" * 50)
-
     # Initialize a list to hold the row data for the CSV
     csv_stats = []
 
     for i, name in enumerate(actuator_names):
-        torques = torque_history[:step_count-2, i]
+        torques = torque_history[:step_count, i]
         mean_val = np.mean(np.abs(torques))
         max_val = np.max(np.abs(torques))
         std_val = np.std(torques)
         rms_val = np.sqrt(np.mean(torques ** 2))
-
-        print(f"\n{name}:")
-        print(f"  Mean (abs): {mean_val:.2f} Nm")
-        print(f"  Max (abs) : {max_val:.2f} Nm")
-        print(f"  Std Dev   : {std_val:.2f} Nm")
-        print(f"  RMS       : {rms_val:.2f} Nm")
 
         # Append data to the CSV structure
         csv_stats.append({
@@ -199,16 +198,10 @@ def main():
             "RMS_Nm": f"{rms_val:.4f}"
         })
 
-    all_torques = torque_history[:step_count-2].flatten()
+    all_torques = torque_history[:step_count].flatten()
     overall_mean = np.mean(np.abs(all_torques))
     overall_max = np.max(np.abs(all_torques))
     overall_rms = np.sqrt(np.mean(all_torques ** 2))
-
-    print("\n OVERALL STATISTICS")
-    print("=" * 50)
-    print(f"  Overall Mean: {overall_mean:.2f} Nm")
-    print(f"  Overall Max : {overall_max:.2f} Nm")
-    print(f"  Overall RMS : {overall_rms:.2f} Nm")
 
     # Add the Overall metrics to the bottom of the CSV
     csv_stats.append({
@@ -257,7 +250,7 @@ def main():
             f.write("\t".join(header_row) + "\n")
 
             # Write row data
-            for i in range(step_count - 2):
+            for i in range(step_count):
                 row_data = [f"{time_array[i]:.6f}"] + [f"{val:.6f}" for val in torque_history[i]]
                 f.write("\t".join(row_data) + "\n")
 
