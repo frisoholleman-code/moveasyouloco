@@ -46,7 +46,6 @@ def main():
             # Load Trajectory
             traj = Trajectory.load(npz_path)
             print(" Precomputing missing physics data for JAX reward calculation...")
-
             # Lightweight CPU env to borrow the model
             temp_env = SkeletonTorque()
             mj_model = temp_env.get_model()
