@@ -46,7 +46,11 @@ class BaseSkeleton(LocoEnv):
             observation_spec (List[ObservationType]): Observation specification.
             actuation_spec (List[str]): Action specification.
             **kwargs: Additional arguments.
+                model_path (str): Optional path to the XML model file. This is a synonym for `spec`.
         """
+
+        if spec is None and "model_path" in kwargs:
+            spec = kwargs.pop("model_path")
 
         if spec is None:
             spec = self.get_default_xml_file_path()

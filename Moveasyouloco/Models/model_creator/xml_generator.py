@@ -19,29 +19,34 @@ class LocoMujocoLimiter:
         0.087 radians is roughly 5 degrees of padding.
         """
         with np.load(npz_path, allow_pickle=True) as data:
-            # Note: Adjust these keys if your loco-mujoco npz uses different names
-            # 'qpos' is typically the joint position array in MuJoCo
-            angles = data['qpos']
-            names = data['joint_names']
+            # 'qpos' is the joint position array in MuJoCo
+            qpos = data['qpos']
+            joint_names = data['joint_names']
 
-            if isinstance(names[0], bytes):
-                names = [n.decode('utf-8') for n in names]
+            if isinstance(joint_names[0], bytes):
+                joint_names = [n.decode('utf-8') for n in joint_names]
 
-        # Calculate actual min and max across all time steps (axis 0)
-        min_angles = np.min(angles, axis=0)
-        max_angles = np.max(angles, axis=0)
-
+        # For each joint, compute its qpos indices and extract limits
         limits_dict = {}
-        for i, name in enumerate(names):
-            # Skip the root joint if it's in the data (usually the first 7 indices for pos/quat)
-            if name == "root":
+        qpos_idx = 0
+        
+        for joint_name in joint_names:
+            # Skip the root free joint (7 qpos indices: 3 pos + 4 quat)
+            if joint_name == "root":
+                qpos_idx += 7
                 continue
-
-            limits_dict[name] = {
-                'min': min_angles[i] - padding_rad,
-                'max': max_angles[i] + padding_rad
+            
+            # Each hinge/slide joint has 1 qpos index
+            min_angle = np.min(qpos[:, qpos_idx])
+            max_angle = np.max(qpos[:, qpos_idx])
+            
+            limits_dict[joint_name] = {
+                'min': min_angle - padding_rad,
+                'max': max_angle + padding_rad
             }
-
+            
+            qpos_idx += 1
+        
         return limits_dict
 
     def apply_limits_to_xml(self, limits_dict):
@@ -86,9 +91,9 @@ class LocoMujocoLimiter:
 
 def main():
     parser = argparse.ArgumentParser(description='Limit Loco-Mujoco Skeleton from NPZ data.')
-    parser.add_argument('--template', type=str, default='skeleton_torque.xml')
+    parser.add_argument('--template', type=str, default='skeleton_torque.xml') #hier ook nog de goede path
     parser.add_argument('--data', type=str, required=True, help='Path to the .npz motion file')
-    parser.add_argument('--output', type=str, default='skeleton_limited.xml')
+    parser.add_argument('--output', type=str, default='skeleton_limited.xml') #misschien dit nog ff aanpassen naar een logischere path
     parser.add_argument('--padding', type=float, default=0.087, help='Padding in radians (default: 5 degrees)')
     args = parser.parse_args()
 
