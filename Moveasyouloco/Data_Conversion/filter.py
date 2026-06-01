@@ -86,8 +86,8 @@ def smooth_mot_file(input_filepath, output_filepath, cutoff_freq=6.0, order=4):
 # ==========================================
 if __name__ == "__main__":
     # Define your input and output files
-    input_mot = "/home/frisokroes/loco-mujoco-linux/loco-mujoco/Moveasyouloco/Data_Conversion/Input_Files/squat5.mot"  # Replace with your actual OpenCap file path
-    output_mot = "/home/frisokroes/loco-mujoco-linux/loco-mujoco/Moveasyouloco/Data_Conversion/Output_Files/squat5_smoothed.mot"
+    input_mot = "Moveasyouloco/Data_Conversion/Input_Files/squat3.mot"  # Replace with your actual OpenCap file path
+    output_mot = "Moveasyouloco/Data_Conversion/Output_Files/squat3_smoothed.mot"
 
     # Common cutoff frequency for human motion (walking/running) is usually between 6Hz and 15Hz
     CUTOFF_FREQUENCY = 6.0

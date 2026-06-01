@@ -1,13 +1,12 @@
 import os
 import subprocess
-DATE="2026-05-27"
-TIME="14-00-11" 
-EVALUATE= True   #set to False when run is already evaluated and you just want to generate the graph, set to True when you want to run the evaluation and generate the graph
-PLOT_GRAPHS= False #set to False to skip graph generation, set to True to generate the graph after evaluation, can be set to True even if EVALUATE is False, as long as the evaluation has already been run and the necessary .csv file is available in the output directory
-GRAPH_NAMES = ["hip_torque_graph_r","hip_torque_graph_l","knee_torque_graph","ankle_torque_graph"] #list of graph names to be generated, should correspond to the joints in JOINTS_TO_PLOT, if you want to generate only one graph, set this to a list with one element, e.g. ["hip_torque_graph"]
-JOINTS_TO_PLOT = [['hip_flexion_r','hip_adduction_r','hip_rotation_r'],['hip_flexion_l','hip_adduction_l','hip_rotation_l'],
-                  ['knee_angle_r','knee_angle_l'],
-                  ['ankle_angle_r','ankle_angle_l']]
+DATE="2026-05-29"
+TIME="14-10-18" 
+EVALUATE= False  # set to False when run is already evaluated and you just want to generate the graph
+PLOT_TORQUES= True   # set to True to evaluate and/or plot torque output
+PLOT_KINEMATICS= True   # set to True to evaluate and/or plot kinematics output
+GRAPH_NAMES = ["knee"] # list of graph name prefixes to be generated
+JOINTS_TO_PLOT = [['knee_angle_r','knee_angle_l']]
 
     #'lumbar_ext','lumbar_bend','lumbar_rot',
     #'shoulder_flex_g br','shoulder_add_r','shoulder_rot_r','shoulder_flex_l','shoulder_add_l','shoulder_rot_l','elbow_flex_r','elbow_flex_l',
@@ -23,25 +22,23 @@ os.makedirs(output_dir, exist_ok=True)
 args_output = f"{output_dir}/"
 
 if EVALUATE:
-    #Evaluate torques, run eval_torques
-    subprocess.run(["python", "Moveasyouloco/Evaluations/eval_torques.py", 
+    # Run combined evaluation (produces both torques.mot and kinematics.mot in one pass)
+    subprocess.run(["python", "Moveasyouloco/Evaluations/evaluate.py", 
                     "--path", args_path,
                     "--outputpath", args_output,
-                    "--n_steps", "1000",
-                    "--save_torques"])
+                    "--n_steps", "2000"])
 
-    #Convert the .mot to .csv
-    subprocess.run(["python", "Moveasyouloco/Evaluations/mot_to_csv_converter.py",
-                    "--path", f"{args_output}torques.mot",
-                    "--outputpath", f"{args_output}torques.csv"])
-
-    #.mot no longer necessary, can be deleted if desired, uncomment line below to delete .mot
-    #os.remove(f"{args_output}torques.mot")
-
-if PLOT_GRAPHS:
+if PLOT_TORQUES:
     for name in GRAPH_NAMES:
         subprocess.run(["python", "Moveasyouloco/Evaluations/graph_generator_joint.py",
-                        "--path", f"{args_output}torques.csv",
-                        "--outputpath", f"{args_output}{name}.png",
+                        "--path", f"{args_output}torques.mot",
+                        "--outputpath", f"{args_output}torque_{name}.png",
+                        "--joints"] + JOINTS_TO_PLOT[GRAPH_NAMES.index(name)])
+
+if PLOT_KINEMATICS:
+    for name in GRAPH_NAMES:
+        subprocess.run(["python", "Moveasyouloco/Evaluations/graph_generator_joint.py",
+                        "--path", f"{args_output}kinematics.mot",
+                        "--outputpath", f"{args_output}kinematics_{name}.png",
                         "--joints"] + JOINTS_TO_PLOT[GRAPH_NAMES.index(name)])
 

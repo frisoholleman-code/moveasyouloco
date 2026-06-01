@@ -91,7 +91,7 @@ class LocoMujocoLimiter:
 
 def main():
     parser = argparse.ArgumentParser(description='Limit Loco-Mujoco Skeleton from NPZ data.')
-    parser.add_argument('--template', type=str, default='skeleton_torque.xml') #hier ook nog de goede path
+    parser.add_argument('--template', type=str, default='Moveasyouloco/Models/skeleton/skeleton_torque.xml') #hier ook nog de goede path
     parser.add_argument('--data', type=str, required=True, help='Path to the .npz motion file')
     parser.add_argument('--output', type=str, default='skeleton_limited.xml') #misschien dit nog ff aanpassen naar een logischere path
     parser.add_argument('--padding', type=float, default=0.087, help='Padding in radians (default: 5 degrees)')

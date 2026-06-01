@@ -22,10 +22,10 @@ INPUT_DIR = BASE_DIR / "Input_Files"
 OUTPUT_DIR = BASE_DIR / "Output_Files"
 MODEL_DIR = BASE_DIR.parent / "Models" / "skeleton"
 
-MOT_FILE_PATH = OUTPUT_DIR / "squat5_smoothed.mot"  # Input path, take from Input_Files.
+MOT_FILE_PATH = OUTPUT_DIR / "squat3_smoothed.mot"  # Input path, take from Input_Files.
 XML_MODEL_PATH = MODEL_DIR / "skeleton_torque.xml"  # Path to xml model in Models/skeleton.
 CONTROL_NPZ_PATH = BASE_DIR / "Control_Data" / "walk1_subject5.npz"  # Control data walk1subject5
-OUTPUT_NPZ_PATH = OUTPUT_DIR / f"{MOT_FILE_PATH.stem}_test_converted.npz"  # Output path for the converted .npz file in Output_Files
+OUTPUT_NPZ_PATH = OUTPUT_DIR / f"{MOT_FILE_PATH.stem}_converted.npz"  # Output path for the converted .npz file in Output_Files
 
 # Set to True to print a visual mapping comparison for 5 random joints
 ENABLE_VERIFICATION = True
