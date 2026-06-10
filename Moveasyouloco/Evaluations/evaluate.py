@@ -179,8 +179,8 @@ def main():
     # --- ENVIRONMENT SETUP ---
     # ==========================================
     OmegaConf.set_struct(config, False)
-    config.experiment.env_params["goal_type"] = "GoalTrajMimic"
-
+    config.experiment.env_params["headless"]=False
+    config.experiment.env_params["goal_type"] = "GoalTrajMimicv2"
     env = factory.make(**config.experiment.env_params, **factory_parameters)
 
     # Handle standard vs gym environment data access
@@ -253,6 +253,7 @@ def main():
 
         obs = next_obs
         step_count += 1
+        env.render()
 
     print(f"COMPLETE: Collected data for {step_count} frames")
 
