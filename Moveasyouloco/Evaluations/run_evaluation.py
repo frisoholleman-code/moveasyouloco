@@ -1,10 +1,10 @@
 import os
 import subprocess
 DATE="2026-06-10"
-TIME="13-06-25"
+TIME="8.3"
 EVALUATE= True  # set to False when run is already evaluated and you just want to generate the graph
-PLOT_TORQUES= True   # set to True to evaluate and/or plot torque output
-PLOT_KINEMATICS= True   # set to True to evaluate and/or plot kinematics output
+PLOT_TORQUES= False   # set to True to evaluate and/or plot torque output
+PLOT_KINEMATICS= False   # set to True to evaluate and/or plot kinematics output
 GRAPH_NAMES = ["knee","lumbar"] # list of graph name prefixes to be generated
 JOINTS_TO_PLOT = [['knee_angle_r','knee_angle_l'],['lumbar_bend']]
 

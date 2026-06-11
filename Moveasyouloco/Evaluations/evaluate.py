@@ -118,7 +118,8 @@ def main():
     if "custom_dataset_conf" in factory_parameters:
         conf_dict = factory_parameters["custom_dataset_conf"]
         if "traj" in conf_dict and isinstance(conf_dict["traj"], str):
-            npz_path = conf_dict["traj"]
+            npz_path = conf_dict["traj"] 
+            #npz_path = "Moveasyouloco/Data_Conversion/Output_Files/squat2_smoothed_converted.npz"
             print(f"\n Intercepted string path in YAML: {npz_path}")
 
             traj = Trajectory.load(npz_path)
@@ -181,6 +182,7 @@ def main():
     OmegaConf.set_struct(config, False)
     config.experiment.env_params["headless"]=False
     config.experiment.env_params["goal_type"] = "GoalTrajMimicv2"
+    #config.experiment.env_params["model_path"] = "Moveasyouloco/Models/skeleton/skeleton_torque.xml"
     env = factory.make(**config.experiment.env_params, **factory_parameters)
 
     # Handle standard vs gym environment data access
