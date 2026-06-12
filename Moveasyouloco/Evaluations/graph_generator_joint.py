@@ -147,6 +147,17 @@ def load_traj_data(traj_path):
     return None
 
 
+def resolve_joint_name(joint, columns):
+    mapping = {
+        'lumbar_ext': 'lumbar_extension',
+        'lumbar_bend': 'lumbar_bending',
+        'lumbar_rot': 'lumbar_rotation',
+    }
+    if joint in columns:
+        return joint
+    return mapping.get(joint, joint)
+
+
 def generate_plot(mot_file, output_file, joints):
     print(f"Loading data from {mot_file}...")
     data_type = get_mot_data_type(mot_file)
@@ -195,11 +206,12 @@ def generate_plot(mot_file, output_file, joints):
 
     plotted_count = 0
     for joint in joints:
-        if joint in df.columns:
-            line, = ax.plot(df['time'], df[joint], label=joint, linewidth=1.5)
+        actual_joint = resolve_joint_name(joint, df.columns)
+        if actual_joint in df.columns:
+            line, = ax.plot(df['time'], df[actual_joint], label=joint, linewidth=1.5)
             plotted_count += 1
-            if joint in joint_limits:
-                min_val, max_val = joint_limits[joint]
+            if actual_joint in joint_limits:
+                min_val, max_val = joint_limits[actual_joint]
                 ax.axhline(min_val, color='red', linestyle=':', linewidth=1.5, alpha=0.9,
                            label='_nolegend_')
                 ax.axhline(max_val, color='red', linestyle=':', linewidth=1.5, alpha=0.9,
@@ -209,8 +221,8 @@ def generate_plot(mot_file, output_file, joints):
             if traj_df is not None:
                 overlay_series = None
                 overlay_label = None
-                if joint in traj_df.columns:
-                    overlay_series = traj_df[joint]
+                if actual_joint in traj_df.columns:
+                    overlay_series = traj_df[actual_joint]
                     overlay_label = f"{joint}_opencap"
                 else:
                     joint_lower = joint.lower()
@@ -240,7 +252,7 @@ def generate_plot(mot_file, output_file, joints):
                         ax.plot(df['time'], overlay_values, label=overlay_label, linestyle=':', linewidth=1.0,
                                 color=line.get_color(), alpha=0.9)
         else:
-            print(f" Warning: Joint '{joint}' not found in the file! Skipping...")
+            print(f"Warning: Joint '{joint}' not found in the file! Skipping...")
 
     if plotted_count == 0:
         print("Error: None of the requested joints were found in the file. Plot cancelled.")

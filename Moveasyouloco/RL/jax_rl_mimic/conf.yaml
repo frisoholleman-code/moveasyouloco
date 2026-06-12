@@ -30,25 +30,32 @@ experiment:
       qvel_w_sum: 0.2 
       rpos_w_sum: 0.5 
       rquat_w_sum: 0.3 
-      rvel_w_sum: 0.1 
-      #joint_acc_coeff: 0.01
-      #joint_torque_coeff: 0.1
+      rvel_w_sum: 0.0
+      qpos_w_exp: 5.0
+      qvel_w_exp: 2.0
+      rpos_w_exp: 50.0
+      rquat_w_exp: 10.0
+      rvel_w_exp: 0.1
+      action_out_of_bounds_coeff: 0.01
+      joint_acc_coeff: 0.0005
+      joint_torque_coeff: 0.0005
+      action_rate_coeff: 0.05
       sites_for_mimic:
         - upper_body_mimic 
         - left_hand_mimic 
         - left_foot_mimic 
         - right_hand_mimic 
         - right_foot_mimic 
-  hidden_layers: [512, 256] 
+  hidden_layers: [512,256,128] 
   lr: 1e-4 
   num_envs: 2048 
-  num_steps: 500 
+  num_steps: 500
   record_n_steps: 300 
   total_timesteps: 200e6
   update_epochs: 8 
   proportion_env_reward: 0.0 
   num_minibatches: 128 
-  gamma: 0.99 
+  gamma: 0.999 
   gae_lambda: 0.95 
   clip_eps: 0.2 
   init_std: 0.2 

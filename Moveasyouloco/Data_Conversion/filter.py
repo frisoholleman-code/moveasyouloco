@@ -173,9 +173,9 @@ def process_mot_file(input_filepath, output_filepath, filter_type='butterworth',
 # Execution Block
 # ==========================================
 if __name__ == "__main__":
-
-    input_mot = "/home/frisokroes/loco-mujoco-linux/loco-mujoco/Moveasyouloco/Data_Conversion/Output_Files/RL_squat3.mot"
-    output_mot = "/home/frisokroes/loco-mujoco-linux/loco-mujoco/Moveasyouloco/Data_Conversion/Output_Files/torques_smoothed_ultra_RL_v2_r.mot"
+    # Define your input and output files
+    input_mot = "Moveasyouloco/Data_Conversion/Input_Files/torques.mot"  # Replace with your actual OpenCap file path
+    output_mot = "Moveasyouloco/Data_Conversion/Output_Files/torques_smoothed.mot"
 
     # ---------------------------------------------------------
     # CONFIGURATION
